@@ -15,7 +15,7 @@ jobs:
         continue-on-error: false
         uses: actions/checkout@v2 # action checks-out your repository under $GITHUB_WORKSPACE, so your workflow can access it.
         with:
-           ref: 'cicd' # only checkout from 'main', as final release should be created from 'main' branch
+           ref: 'main' # only checkout from 'main', as final release should be created from 'main' branch
 
       - name: Configure AWS Credentials
         id: aws-creds
@@ -49,7 +49,7 @@ jobs:
         continue-on-error: false
         uses: actions/checkout@v2 # action checks-out your repository under $GITHUB_WORKSPACE, so your workflow can access it.
         with:
-           ref: 'cicd' # only checkout from 'main', as final release should be created from 'main' branch
+           ref: 'main' # only checkout from 'main', as final release should be created from 'main' branch
       
       - name: Configure AWS credentials 
         id: aws-creds
@@ -87,7 +87,7 @@ jobs:
         continue-on-error: false
         uses: actions/checkout@v2 # action checks-out your repository under $GITHUB_WORKSPACE, so your workflow can access it.
         with:
-           ref: 'cicd' # only checkout from 'main', as final release should be created from 'main' branch
+           ref: 'main' # only checkout from 'main', as final release should be created from 'main' branch
 
       - name: Configure AWS Credentials
         id: aws-creds
