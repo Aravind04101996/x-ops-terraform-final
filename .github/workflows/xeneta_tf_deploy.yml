@@ -1,0 +1,109 @@
+name: Deploy Xeneta Application Infrastructure in AWS # The name of the workflow
+on: # Specifies the trigger for this workflow
+  release:
+    types: [published] # only if a release is published
+jobs:
+  deploy_database_infra: # Name of job
+    runs-on: ubuntu-latest # Configures the job to run on the latest version of an Ubuntu Linux runner. This means that the job will execute on a fresh virtual machine hosted by GitHub
+
+    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout Repo
+        continue-on-error: false
+        uses: actions/checkout@v2 # action checks-out your repository under $GITHUB_WORKSPACE, so your workflow can access it.
+        with:
+           ref: 'cicd' # only checkout from 'main', as final release should be created from 'main' branch
+
+      - name: Configure AWS Credentials
+        id: aws-creds
+        uses: aws-actions/configure-aws-credentials@v1.6.1 # Configure AWS credential and region environment variables for use in other GitHub Actions
+        with:
+            aws-region: us-east-2
+            role-to-assume: ${{ secrets.IAM_ROLE_TO_ASSUME }}
+            role-session-name: deploy-db-infra
+          
+      - name: Terraform Deployment - Database Infra
+        continue-on-error: false
+        run: |
+          cd database-infra-terraform
+          echo "Terraform Init"
+          terraform init
+          echo "Terraform Plan"
+          terraform plan
+          echo "Terraform Apply"
+          terraform apply --auto-approve
+
+   # Build, tag, and push image to Amazon ECR
+  upload_docker_image_to_ecr:
+    needs: deploy_database_infra
+    runs-on: ubuntu-latest # Configures the job to run on the latest version of an Ubuntu Linux runner. This means that the job will execute on a fresh virtual machine hosted by GitHub
+    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout Repo
+        continue-on-error: false
+        uses: actions/checkout@v2 # action checks-out your repository under $GITHUB_WORKSPACE, so your workflow can access it.
+        with:
+           ref: 'cicd' # only checkout from 'main', as final release should be created from 'main' branch
+      
+      - name: Configure AWS credentials 
+        id: aws-creds
+        uses: aws-actions/configure-aws-credentials@v1.6.1 # Configure AWS credential and region environment variables for use in other GitHub Actions
+        with:
+            aws-region: us-east-2
+            role-to-assume: ${{ secrets.IAM_ROLE_TO_ASSUME }}
+            role-session-name: upload-to-ecr
+      
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1 #Logs in the local Docker client to one or more Amazon ECR registries.
+      
+      - name: Build, tag, and push image to Amazon ECR
+        id: push-ecr
+        continue-on-error: true
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: x-ops-repo
+          IMAGE_TAG: '1.0'
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+  
+  deploy_eks_infra: # Name of job
+    needs: [deploy_database_infra, upload_docker_image_to_ecr]
+    runs-on: ubuntu-latest # Configures the job to run on the latest version of an Ubuntu Linux runner. This means that the job will execute on a fresh virtual machine hosted by GitHub
+
+    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout Repo
+        continue-on-error: false
+        uses: actions/checkout@v2 # action checks-out your repository under $GITHUB_WORKSPACE, so your workflow can access it.
+        with:
+           ref: 'cicd' # only checkout from 'main', as final release should be created from 'main' branch
+
+      - name: Configure AWS Credentials
+        id: aws-creds
+        uses: aws-actions/configure-aws-credentials@v1.6.1 # Configure AWS credential and region environment variables for use in other GitHub Actions
+        with:
+            aws-region: us-east-2
+            role-to-assume: ${{ secrets.IAM_ROLE_TO_ASSUME }}
+            role-session-name: deploy-eks-infra
+          
+      - name: Terraform Deployment - EKS Cluster Infra
+        continue-on-error: false
+        run: |
+          cd eks-cluster-terraform
+          echo "Terraform Init"
+          terraform init
+          echo "Terraform Plan"
+          terraform plan
+          echo "Terraform Apply"
+          terraform apply --auto-approve
