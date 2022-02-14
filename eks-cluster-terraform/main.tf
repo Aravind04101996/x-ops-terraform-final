@@ -44,3 +44,30 @@ module "alb_ingress" {
   service_accounts = ["kube-system/alb-ingress-controller"]
   policies         = [data.aws_iam_policy_document.alb_ingress.json]
 }
+
+########### Store Cluster Name, Cluster CA Certificate, Host name in SSM Parameter ############
+###################################################################################################################
+
+resource "aws_ssm_parameter" "eksclustername" {
+  name        = "/ekscluster/name"
+  description = "Name of EKS Cluster"
+  type        = "String"
+  value       = module.eks.cluster_id
+  overwrite   = true
+}
+
+resource "aws_ssm_parameter" "eksclusterhost" {
+  name        = "/ekscluster/host"
+  description = "Endpoint of EKS control plane"
+  type        = "String"
+  value       = module.eks.cluster_endpoint
+  overwrite   = true
+}
+
+resource "aws_ssm_parameter" "eksclustercacert" {
+  name        = "/ekscluster/cacert"
+  description = "Cluster Certificate"
+  type        = "String"
+  value       = base64decode(data.aws_eks_cluster.cluster.certificate_authority.0.data)
+  overwrite   = true
+}

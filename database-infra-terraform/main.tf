@@ -53,7 +53,7 @@ module "db" {
   storage_encrypted     = false
   name                  = "rates"
   username              = "postgres"
-  password              = data.aws_ssm_parameter.dbpassword.value
+  password              = base64decode(aws_ssm_parameter.db_pwd_encoded.value)
   port                  = 5432
 
   multi_az               = true
@@ -88,7 +88,7 @@ module "db" {
 module "db_agent_userdata" {
   source      = "./modules/terraform-aws-db-agent-userdata"
   s3_bucket   = aws_s3_bucket.db.id
-  rds_pwd     = data.aws_ssm_parameter.dbpassword.value
+  rds_pwd     = base64decode(aws_ssm_parameter.db_pwd_encoded.value)
   rds_address = module.db.db_instance_address
   rds_user    = "postgres"
   rds_db      = "rates"
